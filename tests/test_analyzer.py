@@ -15,7 +15,6 @@ from analyzer.seo_analyzer import (
     ISSUE_MISSING_META_DESC,
     ISSUE_MISSING_TITLE,
     ISSUE_SERVER_ERROR,
-    ISSUE_SLOW_RESPONSE,
     ISSUE_UNREACHABLE,
     analyze_pages,
 )
@@ -200,27 +199,9 @@ class TestHttpStatus:
         assert ISSUE_MISSING_META_DESC not in types
 
 
-# --- Slow Response --------------------------------------------------------
-
-class TestSlowResponse:
-    def test_fast_page_not_flagged(self):
-        issues = analyze_pages([_page(response_time=0.5)])
-        assert ISSUE_SLOW_RESPONSE not in _types(issues)
-
-    def test_at_threshold_not_flagged(self):
-        # 2.0 is exactly the threshold; threshold is "<=" so 2.0 is fine.
-        issues = analyze_pages([_page(response_time=2.0)])
-        assert ISSUE_SLOW_RESPONSE not in _types(issues)
-
-    def test_above_threshold_flagged(self):
-        issues = analyze_pages([_page(response_time=3.5)])
-        assert ISSUE_SLOW_RESPONSE in _types(issues)
-
-    def test_no_response_time_not_flagged(self):
-        # A page that failed (no response_time) shouldn't be flagged as slow.
-        issues = analyze_pages([_page(response_time=None, status_code=None,
-                                      html=None, error="Timeout")])
-        assert ISSUE_SLOW_RESPONSE not in _types(issues)
+# Note: the "Slow Response Time" check moved to the Performance analyzer in
+# Stage 10 (it measures server response time, a performance signal). Its tests
+# now live in tests/test_performance.py.
 
 
 # --- Cross-page broken link detection -------------------------------------

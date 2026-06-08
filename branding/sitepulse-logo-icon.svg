@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- SitePulse AI - Icon only (square, scalable) -->
+
+  <defs>
+    <linearGradient id="globeGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A5BD8"/>
+      <stop offset="100%" stop-color="#2C3E8C"/>
+    </linearGradient>
+
+    <linearGradient id="pulseGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#27AE60"/>
+      <stop offset="60%" stop-color="#27AE60"/>
+      <stop offset="65%" stop-color="#E74C3C"/>
+      <stop offset="100%" stop-color="#E74C3C"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer ring -->
+  <circle cx="100" cy="100" r="88" fill="none"
+          stroke="url(#globeGrad2)" stroke-width="6"/>
+
+  <!-- Horizontal ellipse (equator) -->
+  <ellipse cx="100" cy="100" rx="88" ry="28" fill="none"
+           stroke="url(#globeGrad2)" stroke-width="2.5" opacity="0.4"/>
+
+  <!-- Vertical ellipse (prime meridian) -->
+  <ellipse cx="100" cy="100" rx="28" ry="88" fill="none"
+           stroke="url(#globeGrad2)" stroke-width="2.5" opacity="0.4"/>
+
+  <!-- ECG-style pulse line through the center -->
+  <path d="M 20 100 L 55 100 L 68 84 L 80 122 L 92 60 L 104 138 L 116 100 L 180 100"
+        fill="none"
+        stroke="url(#pulseGrad2)"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Highlight dot at peak -->
+  <circle cx="92" cy="60" r="5" fill="#E74C3C"/>
+</svg>

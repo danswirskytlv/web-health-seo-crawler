@@ -111,6 +111,31 @@ class RobotsChecker:
 
 # --- Single-page fetch ----------------------------------------------------
 
+def _extract_set_cookie(response: "requests.Response") -> list[str]:
+    """
+    Return the response's Set-Cookie headers as a list, one per cookie.
+
+    requests merges multiple Set-Cookie headers into a single comma-joined
+    string (response.headers['Set-Cookie']), which is ambiguous because cookie
+    Expires dates legitimately contain commas. The underlying urllib3 response
+    keeps them separate via getlist(), so we use that when available and fall
+    back to the (rarely-needed) single-header case otherwise.
+    """
+    try:
+        raw = getattr(response, "raw", None)
+        raw_headers = getattr(raw, "headers", None)
+        if raw_headers is not None and hasattr(raw_headers, "getlist"):
+            cookies = raw_headers.getlist("Set-Cookie")
+            if cookies:
+                return list(cookies)
+    except Exception:  # noqa: BLE001 — cookie extraction must never break a crawl
+        pass
+
+    # Fallback: a single Set-Cookie header (no ambiguity to worry about).
+    single = response.headers.get("Set-Cookie")
+    return [single] if single else []
+
+
 def fetch_url(url: str, timeout: float = DEFAULT_TIMEOUT) -> PageResult:
     """
     Fetch one URL and return a PageResult describing what happened.
@@ -138,6 +163,25 @@ def fetch_url(url: str, timeout: float = DEFAULT_TIMEOUT) -> PageResult:
         html = response.text if is_html else None
         links = extract_links(html, url) if is_html else []
 
+        # Response size in bytes. Trust Content-Length if present (no
+        # unnecessary work), otherwise compute from the raw bytes.
+        try:
+            content_length_hdr = response.headers.get("Content-Length")
+            if content_length_hdr is not None and content_length_hdr.isdigit():
+                response_size = int(content_length_hdr)
+            else:
+                response_size = len(response.content)
+        except Exception:  # noqa: BLE001 — never let measurement break the crawl
+            response_size = None
+
+        # Redirect tracking: requests follows redirects by default, so
+        # response.history is non-empty when the URL was redirected.
+        # response.url is the final landing URL. The security analyzer uses
+        # `final_url` vs `url` to spot HTTP->HTTPS upgrades (or their absence).
+        # We keep `url` as the originally-requested URL so the crawler's
+        # dedup set and broken-link cross-check keep matching correctly.
+        was_redirected = len(response.history) > 0
+
         return PageResult(
             url=url,
             status_code=response.status_code,
@@ -145,6 +189,12 @@ def fetch_url(url: str, timeout: float = DEFAULT_TIMEOUT) -> PageResult:
             html=html,
             links=links,
             error=None,
+            response_size=response_size,
+            content_type=content_type or None,
+            headers=dict(response.headers),
+            set_cookie_headers=_extract_set_cookie(response),
+            was_redirected=was_redirected,
+            final_url=response.url or url,
         )
 
     except requests.exceptions.Timeout:

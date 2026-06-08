@@ -23,13 +23,20 @@ import sys
 from collections import Counter
 
 from analyzer.scoring import calculate_score
+from analyzer.performance import PERF_SLOW_RESPONSE
+from analyzer.schema_org import SCHEMA_INVALID_JSON
+from analyzer.security import (
+    SEC_BLANK_WITHOUT_NOOPENER,
+    SEC_COOKIE_NO_HTTPONLY,
+    SEC_COOKIE_NO_SAMESITE,
+    SEC_NO_HTTPS,
+)
 from analyzer.seo_analyzer import (
     ISSUE_BROKEN_LINK,
     ISSUE_MISSING_ALT,
     ISSUE_MISSING_H1,
     ISSUE_MISSING_META_DESC,
     ISSUE_MISSING_TITLE,
-    ISSUE_SLOW_RESPONSE,
     analyze_pages,
 )
 from crawler.crawler import crawl_site
@@ -42,7 +49,7 @@ EXPECTED_COUNTS = {
     ISSUE_MISSING_H1: 2,           # services.html, blog.html
     ISSUE_MISSING_META_DESC: 1,    # services.html
     ISSUE_MISSING_ALT: 3,          # gallery.html × 3
-    ISSUE_SLOW_RESPONSE: 1,        # faq.html
+    PERF_SLOW_RESPONSE: 1,         # faq.html
     # Broken Link is split across two checks:
     # - 1 on /portfolio.html itself (the 4xx page)
     # - 1 on /pricing.html (the page that links to /portfolio.html)
@@ -83,7 +90,7 @@ def main() -> None:
         sys.exit(1)
 
     issues = analyze_pages(pages)
-    score = calculate_score(issues)
+    score = calculate_score(issues, pages)
 
     # ---- Issues breakdown ----
     print("\n" + "=" * 70)
@@ -124,6 +131,25 @@ def main() -> None:
             f"Detected exactly {expected} '{issue_type}'",
             actual == expected,
             f"got {actual}",
+        )
+
+    # Security & Schema issues seeded on /security.html. These are checked as
+    # "at least one" rather than an exact count, because some of them (e.g.
+    # "Site Not Served Over HTTPS") legitimately fire on every page of the
+    # http test site, not a fixed number.
+    print()
+    for issue_type, where in [
+        (SCHEMA_INVALID_JSON, "broken JSON-LD on /security.html"),
+        (SEC_BLANK_WITHOUT_NOOPENER, "target=_blank without noopener on /security.html"),
+        (SEC_COOKIE_NO_HTTPONLY, "insecure cookie (HttpOnly) on /security.html"),
+        (SEC_COOKIE_NO_SAMESITE, "insecure cookie (SameSite) on /security.html"),
+        (SEC_NO_HTTPS, "http site flagged for no HTTPS (every page)"),
+    ]:
+        count = by_type.get(issue_type, 0)
+        _check(
+            f"Detected '{issue_type}' ({where})",
+            count >= 1,
+            f"got {count}",
         )
 
     _check(

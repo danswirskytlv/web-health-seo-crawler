@@ -30,13 +30,6 @@ from models.result_models import (
     SEVERITY_MEDIUM,
 )
 
-# --- Thresholds ----------------------------------------------------------
-
-# A page that takes longer than this is flagged as Slow.
-# 2.0s matches Google's "slow page" guidance for Core Web Vitals.
-SLOW_RESPONSE_THRESHOLD_SECONDS = 2.0
-
-
 # --- Issue type names -----------------------------------------------------
 
 # Plain string constants instead of an Enum — easier to filter, sort and
@@ -48,7 +41,6 @@ ISSUE_MISSING_TITLE = "Missing Title"
 ISSUE_MISSING_H1 = "Missing H1"
 ISSUE_MISSING_META_DESC = "Missing Meta Description"
 ISSUE_MISSING_ALT = "Image Missing Alt"
-ISSUE_SLOW_RESPONSE = "Slow Response Time"
 
 
 # --- Helpers --------------------------------------------------------------
@@ -237,27 +229,6 @@ def _check_images_missing_alt(page: PageResult, soup: BeautifulSoup) -> list[Iss
     return issues
 
 
-def _check_slow_response(page: PageResult) -> list[Issue]:
-    """Flag pages that took longer than the threshold."""
-    if page.response_time is None:
-        return []
-    if page.response_time <= SLOW_RESPONSE_THRESHOLD_SECONDS:
-        return []
-    return [_build_issue(
-        page,
-        issue_type=ISSUE_SLOW_RESPONSE,
-        severity=SEVERITY_MEDIUM,
-        description=(
-            f"The page took {page.response_time:.2f}s to respond, which is above the "
-            f"recommended {SLOW_RESPONSE_THRESHOLD_SECONDS:.0f}s threshold for a good user experience."
-        ),
-        recommendation=(
-            "Investigate slow database queries, large unoptimized assets, "
-            "or missing CDN/caching configuration."
-        ),
-    )]
-
-
 # --- Cross-page check: broken outbound links -----------------------------
 
 def _check_outbound_broken_links(pages: list[PageResult]) -> list[Issue]:
@@ -304,12 +275,36 @@ def _check_outbound_broken_links(pages: list[PageResult]) -> list[Issue]:
 
 # --- Public API -----------------------------------------------------------
 
-def analyze_pages(pages: list[PageResult]) -> list[Issue]:
+def analyze_pages(
+    pages: list[PageResult],
+    check_tls: bool = False,
+    check_exposed_paths: bool = False,
+) -> list[Issue]:
     """
     Run every check on every page and return a flat list of issues.
 
     Returned issues are NOT deduplicated — the same problem on multiple
     pages becomes multiple issues, which is what the UI and the scorer want.
+
+    Two flags control the network-touching checks, both off by default so this
+    function stays fully offline and deterministic for tests:
+      - `check_tls`: live, per-host TLS inspection.
+      - `check_exposed_paths`: active probe for sensitive paths (.env, .git, …);
+        this sends requests the site didn't link, so it is strictly opt-in.
+
+    Categories included:
+      - SEO: title, h1, meta description, image alts, status codes,
+        broken outbound links
+      - Accessibility (Stage 9): lang, viewport, form labels, link text,
+        heading order, button text, contrast (delegated to
+        analyzer.accessibility)
+      - Performance (Stage 10): page weight, resource count, render-blocking
+        scripts, inline CSS/handlers, and slow response time (delegated to
+        analyzer.performance)
+      - Security (Stage 11): transport security, security headers, cookies,
+        information disclosure (delegated to analyzer.security)
+      - Schema (Stage 12): JSON-LD detection, validation and per-page-type
+        recommendations (delegated to analyzer.schema_org)
     """
     issues: list[Issue] = []
 
@@ -317,10 +312,7 @@ def analyze_pages(pages: list[PageResult]) -> list[Issue]:
         # 1. HTTP-level checks always run, even if there's no HTML body.
         issues.extend(_check_http_status(page))
 
-        # 2. Response-time check — independent of HTML.
-        issues.extend(_check_slow_response(page))
-
-        # 3. HTML-based SEO checks should ONLY run on pages that actually
+        # 2. HTML-based SEO checks should ONLY run on pages that actually
         # loaded successfully (2xx). A 404 page may technically contain HTML,
         # but flagging its missing meta description as an SEO problem is
         # noise — error pages aren't meant to be indexed in the first place.
@@ -338,5 +330,39 @@ def analyze_pages(pages: list[PageResult]) -> list[Issue]:
 
     # 4. Cross-page check: which pages link to broken pages.
     issues.extend(_check_outbound_broken_links(pages))
+
+    # 5. Run the accessibility analyzer over the same pages. Done as a
+    # separate pass so the accessibility module can stay clean (no imports
+    # from this module). It adds category="Accessibility" Issues alongside
+    # the SEO ones.
+    from analyzer.accessibility import analyze_pages_a11y
+    issues.extend(analyze_pages_a11y(pages))
+
+    # 6. Run the performance analyzer (Stage 10). Same pattern — independent
+    # module, contributes category="Performance" Issues.
+    from analyzer.performance import analyze_pages_performance
+    issues.extend(analyze_pages_performance(pages))
+
+    # 7. Run the security analyzer (Stage 11). Same pattern again — adds
+    # Transport Security / Security Headers / Information Disclosure Issues.
+    # Live TLS inspection only runs when the caller opts in (check_tls).
+    from analyzer.security import analyze_pages_security
+    issues.extend(analyze_pages_security(pages, check_tls=check_tls))
+
+    # 8. Run the schema.org analyzer (Stage 12). Adds category="Schema"
+    # structured-data Issues (detect / validate / recommend JSON-LD).
+    from analyzer.schema_org import analyze_pages_schema
+    issues.extend(analyze_pages_schema(pages))
+
+    # 9. Run the privacy analyzer. Static/offline — adds category="Privacy"
+    # third-party-tracker Issues read from the page's own markup.
+    from analyzer.privacy import analyze_pages_privacy
+    issues.extend(analyze_pages_privacy(pages))
+
+    # 10. Active exposed-paths probe (opt-in). Sends requests for sensitive
+    # paths the site didn't link, so it only runs when explicitly enabled.
+    if check_exposed_paths:
+        from analyzer.exposed_paths import analyze_pages_exposed
+        issues.extend(analyze_pages_exposed(pages))
 
     return issues

@@ -32,6 +32,38 @@ SEVERITY_LOW = "Low"
 VALID_SEVERITIES = {SEVERITY_HIGH, SEVERITY_MEDIUM, SEVERITY_LOW}
 
 
+# --- Categories -----------------------------------------------------------
+
+# Categories group issues by domain. Defaults to SEO for the existing
+# analyzer; later phases (accessibility, performance, security, schema)
+# will populate the other values.
+CATEGORY_SEO = "SEO"
+CATEGORY_ACCESSIBILITY = "Accessibility"
+CATEGORY_PERFORMANCE = "Performance"
+CATEGORY_SECURITY = "Security"
+CATEGORY_SCHEMA = "Schema"
+
+# Stage 11 splits security into focused sub-areas, each surfaced as its own
+# audit category in the UI. CATEGORY_SECURITY is kept for backward
+# compatibility (older scans in the DB may still carry it).
+CATEGORY_TRANSPORT_SECURITY = "Transport Security"
+CATEGORY_SECURITY_HEADERS = "Security Headers"
+CATEGORY_COOKIES = "Cookies"
+CATEGORY_INFO_DISCLOSURE = "Information Disclosure"
+
+# Privacy: third-party trackers and other visitor-tracking concerns detected
+# from the page's own markup (relevant to GDPR / user privacy).
+CATEGORY_PRIVACY = "Privacy"
+
+VALID_CATEGORIES = {
+    CATEGORY_SEO, CATEGORY_ACCESSIBILITY, CATEGORY_PERFORMANCE,
+    CATEGORY_SECURITY, CATEGORY_SCHEMA,
+    CATEGORY_TRANSPORT_SECURITY, CATEGORY_SECURITY_HEADERS,
+    CATEGORY_COOKIES, CATEGORY_INFO_DISCLOSURE,
+    CATEGORY_PRIVACY,
+}
+
+
 # --- Page result ----------------------------------------------------------
 
 @dataclass
@@ -63,6 +95,39 @@ class PageResult:
     # Human-readable error message if the fetch failed. None on success.
     # Example: "Timeout", "ConnectionError: Name or service not known".
     error: Optional[str] = None
+
+    # Response body size in bytes. Used by performance analyzer to flag
+    # pages over the recommended weight budget. Either pulled from the
+    # Content-Length header or computed from len(response.content).
+    # None if we couldn't fetch the body.
+    response_size: Optional[int] = None
+
+    # Content-Type response header, lowercased. Used by performance checks
+    # that want to know whether the response was HTML vs JSON / binary.
+    content_type: Optional[str] = None
+
+    # All HTTP response headers as a plain dict (keys as the server sent them).
+    # HTTP header names are case-insensitive, so the security analyzer looks
+    # them up case-insensitively. Used by Stage 11 to check for HSTS, CSP,
+    # X-Frame-Options, Server / X-Powered-By disclosure, etc.
+    # In-memory only — not persisted to the database.
+    headers: dict = field(default_factory=dict)
+
+    # Raw Set-Cookie header values, one entry per cookie the server set. Kept
+    # separate from `headers` because multiple Set-Cookie headers would
+    # otherwise be merged into a single comma-joined string by requests, which
+    # is ambiguous (cookie Expires dates contain commas). Used by the Stage 11
+    # cookie checks (Secure / HttpOnly / SameSite). In-memory only.
+    set_cookie_headers: list[str] = field(default_factory=list)
+
+    # True if the final response was reached via at least one redirect.
+    was_redirected: bool = False
+
+    # The URL we actually ended up at after following redirects. Equal to
+    # `url` when no redirect happened. `url` stays the originally-requested
+    # URL (the crawler keys dedup and link-matching on it), while final_url
+    # lets the security analyzer detect HTTP->HTTPS upgrades.
+    final_url: Optional[str] = None
 
     @property
     def is_ok(self) -> bool:
@@ -119,12 +184,22 @@ class Issue:
     # Same idea — snapshot of response time.
     response_time: Optional[float] = None
 
+    # Which audit category this issue belongs to. Defaults to "SEO" so the
+    # original analyzer keeps working without changes; new analyzers
+    # (accessibility, performance, security, schema) will override this.
+    category: str = CATEGORY_SEO
+
     def __post_init__(self) -> None:
         # Cheap sanity check — catches typos like "high" or "Hgih".
         if self.severity not in VALID_SEVERITIES:
             raise ValueError(
                 f"Invalid severity {self.severity!r}. "
                 f"Must be one of {sorted(VALID_SEVERITIES)}."
+            )
+        if self.category not in VALID_CATEGORIES:
+            raise ValueError(
+                f"Invalid category {self.category!r}. "
+                f"Must be one of {sorted(VALID_CATEGORIES)}."
             )
 
 
@@ -147,6 +222,11 @@ class ScoreResult:
     high_count: int = 0
     medium_count: int = 0
     low_count: int = 0
+
+    # Per-category sub-scores (0-100), e.g. {"SEO": 80, "Security": 40}.
+    # Computed with the same per-page method restricted to each category.
+    # Empty for scans created before per-category scoring existed.
+    category_scores: dict = field(default_factory=dict)
 
     @property
     def total_issues(self) -> int:

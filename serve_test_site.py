@@ -64,6 +64,12 @@ SLOW_PATHS = {"/faq.html"}          # served with an artificial delay
 ERROR_PATHS = {"/error.html"}        # always return 500
 SLOW_DELAY_SECONDS = 3.0
 
+# Paths that get a deliberately INSECURE Set-Cookie (no Secure / HttpOnly /
+# SameSite). Lets us demo the Stage 11 cookie checks against a live response,
+# since a plain static file can't set response headers itself.
+COOKIE_PATHS = {"/security.html"}
+INSECURE_COOKIE = "session_id=demo12345; Path=/"
+
 
 # --- Custom request handler ----------------------------------------------
 
@@ -82,6 +88,10 @@ class TestSiteHandler(http.server.SimpleHTTPRequestHandler):
         if path in ("", "/"):
             path = "/index.html"
 
+        # Remember the normalized path so end_headers() can decide whether to
+        # attach the insecure demo cookie.
+        self._normalized_path = path
+
         # Case 1: intentionally slow page.
         if path in SLOW_PATHS:
             print(f"[slow] {path} - delaying {SLOW_DELAY_SECONDS}s")
@@ -95,6 +105,15 @@ class TestSiteHandler(http.server.SimpleHTTPRequestHandler):
 
         # Default: let the standard handler serve the file.
         super().do_GET()
+
+    def end_headers(self) -> None:  # noqa: N802 (stdlib naming)
+        # Inject the deliberately-insecure cookie on the configured path(s).
+        # Done here because SimpleHTTPRequestHandler writes its own headers
+        # inside super().do_GET(); end_headers() is the last hook before the
+        # blank line that terminates the header block.
+        if getattr(self, "_normalized_path", None) in COOKIE_PATHS:
+            self.send_header("Set-Cookie", INSECURE_COOKIE)
+        super().end_headers()
 
     def log_message(self, format: str, *args) -> None:
         # Make server logs a bit more readable in the terminal.
@@ -117,6 +136,7 @@ def main() -> None:
     print(f" URL:       http://{HOST}:{PORT}")
     print(f" Slow path: {', '.join(SLOW_PATHS)} ({SLOW_DELAY_SECONDS}s delay)")
     print(f" 500 path:  {', '.join(ERROR_PATHS)}")
+    print(f" Cookie:    {', '.join(COOKIE_PATHS)} (insecure Set-Cookie)")
     print(" Missing:   /portfolio.html (referenced from pricing.html -> 404)")
     print("=" * 60)
     print(" Press Ctrl+C to stop.")

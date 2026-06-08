@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Partners | Plumbing Services Tel-Aviv</title>
+    <meta name="description" content="Our trusted security and payment partners for safe online plumbing bookings.">
+
+    <!-- SEEDED BUG (Schema): broken JSON-LD — trailing comma makes it invalid. -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Plumbing Services Tel-Aviv",
+    }
+    </script>
+
+    <!-- SEEDED BUG (Transport Security): mixed content — script over http on
+         what would be an https page. -->
+    <script src="http://cdn.example.com/legacy-widget.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Our Security Partners</h1>
+        <nav>
+            <a href="/index.html">Home</a> |
+            <a href="/contact.html">Contact</a>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>Trusted partners</h2>
+            <p>
+                We work with established providers to keep your bookings and
+                payments safe.
+            </p>
+
+            <!-- SEEDED BUG (Transport Security): mixed content — image over http. -->
+            <img src="http://images.example.com/partner-badge.png"
+                 alt="Security partner badge">
+        </section>
+
+        <section>
+            <h2>External resources</h2>
+            <p>
+                Read more on our partner's site:
+                <!-- SEEDED BUG (Security Headers): target=_blank without
+                     rel="noopener" (reverse tabnabbing risk). -->
+                <a href="https://partner.example.com/security"
+                   target="_blank">our partner's security page</a>.
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Plumbing Services Tel-Aviv. All rights reserved.</p>
+    </footer>
+</body>
+</html>

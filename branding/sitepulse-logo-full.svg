@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200">
+  <!-- SitePulse AI - Full Logo (Icon + Wordmark) -->
+
+  <defs>
+    <!-- Gradient for the globe circle -->
+    <linearGradient id="globeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4A5BD8"/>
+      <stop offset="100%" stop-color="#2C3E8C"/>
+    </linearGradient>
+
+    <!-- Gradient for the pulse line -->
+    <linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#27AE60"/>
+      <stop offset="60%" stop-color="#27AE60"/>
+      <stop offset="65%" stop-color="#E74C3C"/>
+      <stop offset="100%" stop-color="#E74C3C"/>
+    </linearGradient>
+
+    <!-- Subtle shadow filter -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.15"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ============ ICON ============ -->
+  <g transform="translate(20, 30)" filter="url(#softShadow)">
+    <!-- Outer ring (globe representation) -->
+    <circle cx="70" cy="70" r="64" fill="none"
+            stroke="url(#globeGradient)" stroke-width="5"/>
+
+    <!-- Horizontal meridian line -->
+    <ellipse cx="70" cy="70" rx="64" ry="20" fill="none"
+             stroke="url(#globeGradient)" stroke-width="2" opacity="0.4"/>
+
+    <!-- Vertical meridian line -->
+    <ellipse cx="70" cy="70" rx="20" ry="64" fill="none"
+             stroke="url(#globeGradient)" stroke-width="2" opacity="0.4"/>
+
+    <!-- Pulse line (ECG-style) cutting through the center -->
+    <!-- Goes flat -> up -> down sharply -> up -> flat (classic heartbeat) -->
+    <path d="M 10 70 L 35 70 L 45 60 L 55 85 L 65 45 L 75 95 L 85 70 L 130 70"
+          fill="none"
+          stroke="url(#pulseGradient)"
+          stroke-width="3.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Highlight dot at the peak -->
+    <circle cx="65" cy="45" r="3.5" fill="#E74C3C"/>
+  </g>
+
+  <!-- ============ WORDMARK ============ -->
+  <g transform="translate(180, 0)">
+    <!-- "SitePulse" main wordmark -->
+    <text x="0" y="115"
+          font-family="Inter, Helvetica, Arial, sans-serif"
+          font-size="52"
+          font-weight="700"
+          fill="#1A2247"
+          letter-spacing="-1">
+      <tspan>Site</tspan><tspan fill="#4A5BD8">Pulse</tspan>
+    </text>
+
+    <!-- "AI" badge -->
+    <g transform="translate(310, 75)">
+      <rect x="0" y="0" width="60" height="44" rx="8" ry="8"
+            fill="#27AE60"/>
+      <text x="30" y="32"
+            font-family="Inter, Helvetica, Arial, sans-serif"
+            font-size="22"
+            font-weight="800"
+            fill="#FFFFFF"
+            text-anchor="middle"
+            letter-spacing="2">AI</text>
+    </g>
+
+    <!-- Tagline below the wordmark -->
+    <text x="2" y="148"
+          font-family="Inter, Helvetica, Arial, sans-serif"
+          font-size="14"
+          font-weight="500"
+          fill="#6B7390"
+          letter-spacing="1.5">
+      DIAGNOSE  ·  EXPLAIN  ·  HEAL
+    </text>
+  </g>
+</svg>
