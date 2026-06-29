@@ -38,6 +38,9 @@ frontend/.vite/
 # --- Stray scratch files ---
 _cleanup_probe.txt
 
+# --- Personal local notes (Hebrew run instructions) ---
+הוראות הפעלה
+
 # --- Testing & Coverage ---
 .pytest_cache/
 .coverage

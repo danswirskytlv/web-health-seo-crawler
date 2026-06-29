@@ -40,16 +40,40 @@ Then open **http://localhost:5173**.
 ```
 frontend/
 ├─ index.html              app entry HTML
-├─ package.json            deps + scripts
-├─ vite.config.js          dev server + /api proxy
+├─ package.json            deps + scripts (React, Vite, React Router, Recharts)
+├─ vite.config.js          dev server (:5173) + /api -> :8001 proxy
 └─ src/
-   ├─ main.jsx             React entry
-   ├─ App.jsx              routes + app shell
-   ├─ api.js               typed-ish client for the SitePulse API
-   ├─ styles/theme.css     design system (navy/cyan glassmorphism)
-   ├─ components/          Sidebar, Logo, PageHeader, …
-   └─ screens/             one file per screen (Overview, Issues, …)
+   ├─ main.jsx             React entry (mounts App, BrowserRouter)
+   ├─ App.jsx              routes + dashboard shell
+   ├─ api.js               client for the SitePulse API
+   ├─ styles/
+   │  └─ theme.css         design system (navy/cyan glassmorphism)
+   ├─ state/
+   │  └─ ScanContext.jsx   shared scan result across screens
+   ├─ lib/
+   │  ├─ categoryMeta.js   category labels, icons, colors
+   │  └─ humanize.js       formatting helpers (durations, sizes, …)
+   ├─ components/          Sidebar, Logo, PageHeader, ScoreGauge,
+   │                       PulseLine, AiFixDrawer, HeroLockup, Icons, NavIcons
+   └─ screens/             one file per screen (Landing, Overview, Scan,
+                           Issues, Chat, Reports, History, Settings, Placeholder)
 ```
+
+## Routes
+
+| Path        | Screen      | Notes                                 |
+|-------------|-------------|---------------------------------------|
+| `/`         | Landing     | Full-bleed marketing page (no sidebar)|
+| `/app`      | Overview    | Dashboard home                        |
+| `/scan`     | Scan        | Configure + run a scan                |
+| `/issues`   | Issues      | Issue board + AI Fix drawer           |
+| `/ai`       | Chat        | Grounded "Ask Your Site" chat         |
+| `/reports`  | Reports     | CSV / PDF downloads                   |
+| `/history`  | History     | Trend chart + scan compare            |
+| `/settings` | Settings    | System / AI status                    |
+| `*`         | Placeholder | Not-found fallback                    |
+
+Every route except `/` renders inside the dashboard shell (sidebar + main).
 
 ## Screens
 

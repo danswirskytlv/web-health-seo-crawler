@@ -1,8 +1,12 @@
-# Web Health & SEO Crawler (with AI Assistant)
+# SitePulse — Web Health & SEO Crawler (with AI Assistant)
 
-A local desktop application that scans websites for technical SEO and web
-health issues, then uses **Google Gemini** to explain each issue in plain
-language and suggest a copy-paste fix.
+A local web application that scans a website for technical SEO, accessibility,
+performance, security, privacy, and schema issues, then uses **Google Gemini**
+to explain each issue in plain language and suggest a copy-paste fix.
+
+The architecture is a **Python backend** (crawler + rule-based analyzers + AI +
+SQLite history) exposed through a **FastAPI** layer, with a **React + Vite**
+single-page frontend on top.
 
 Built as a final BSc project in Computer Science.
 
@@ -14,58 +18,60 @@ You enter a website URL. The application:
 
 1. **Crawls** internal pages on the same domain — BFS, depth-limited,
    politely concurrent, respects `robots.txt`.
-2. **Detects** seven kinds of issues with a rule-based analyzer:
-   missing `<title>`, missing `<h1>`, missing meta description, images
-   without `alt`, broken links, slow responses, server errors.
-3. **Scores** the site from 0 to 100 with an explainable formula
-   (High = -10, Medium = -5, Low = -2).
-4. **Explains** each issue with a Google Gemini-powered assistant —
-   plain-language summary, why it matters, and a ready-to-paste HTML fix.
-5. **Exports** results to CSV (issues + pages) and to a print-ready PDF
-   report with the health score, summary cards, and a colored issues table.
+2. **Analyzes** each page with rule-based analyzers across eight audit areas:
+   SEO, accessibility, performance, transport security (TLS), security headers,
+   cookies, information disclosure, privacy/trackers, and schema.org markup.
+3. **Scores** the site 0–100 with an explainable per-page formula, plus a
+   sub-score for each category.
+4. **Explains** each issue with a Gemini-powered assistant — plain-language
+   summary, why it matters, and a ready-to-paste fix. Includes a grounded
+   chatbot and a scan-to-scan "root cause" diff explainer.
+5. **Stores** every scan in a local SQLite database so you can browse history
+   and diff two scans over time.
+6. **Exports** results to CSV (issues + pages) and to a print-ready PDF report.
 
-Separation of concerns is deliberate: the **analyzer** decides what counts
-as a problem, and the **AI** only explains and fixes. This makes the system
+Separation of concerns is deliberate: the **analyzers** decide what counts as a
+problem, and the **AI** only explains and fixes. This keeps the system
 predictable, testable, and easy to defend.
 
 ---
 
 ## Tech stack
 
-| Layer        | Choice                                  | Why                                      |
-|--------------|-----------------------------------------|------------------------------------------|
-| Language     | **Python 3.10+**                        | Fast iteration, mature ecosystem         |
-| UI           | **Streamlit**                           | Lets us stay in Python — no JS framework |
-| Crawling     | **requests** + **BeautifulSoup4**       | Standard, well-understood, easy to test  |
-| Concurrency  | **concurrent.futures.ThreadPoolExecutor** | Network-bound work, simple model       |
-| AI           | **google-generativeai** (Gemini)        | Generous free tier, fast responses       |
-| Reports      | **reportlab**                           | Print-quality PDFs, no headless browser  |
-| Tests        | **pytest**                              | Industry standard                        |
-| Config       | **python-dotenv**                       | Keeps the API key out of source control  |
+| Layer        | Choice                                    | Why                                       |
+|--------------|-------------------------------------------|-------------------------------------------|
+| Language     | **Python 3.10+**                          | Mature ecosystem, fast iteration          |
+| API          | **FastAPI** + **uvicorn**                 | Thin, typed JSON layer over the backend   |
+| Frontend     | **React 18** + **Vite** + **React Router**| Real SPA matching the product mockup      |
+| Charts       | **Recharts**                              | Score gauges and history charts           |
+| Crawling     | **requests** + **BeautifulSoup4** + **lxml** | Standard, well-understood, easy to test|
+| Concurrency  | **concurrent.futures.ThreadPoolExecutor** | Network-bound work, simple model          |
+| AI           | **google-generativeai** (Gemini)          | Generous free tier, fast responses        |
+| Storage      | **SQLite** (stdlib `sqlite3`)             | Zero-config local scan history            |
+| Reports      | **reportlab**                             | Print-quality PDFs, no headless browser   |
+| Tests        | **pytest**                                | Industry standard                         |
+| Config       | **python-dotenv**                         | Keeps the API key out of source control   |
 
 ---
 
 ## Features
 
-- BFS crawler with configurable max-pages, max-depth, and timeout
-- Multi-threaded fetching (configurable workers + polite delay)
+- BFS crawler with configurable max-pages, max-depth, timeout, workers, and polite delay
 - `robots.txt` honored by default; opt-out available
 - Same-domain crawl with extension filtering (skips PDFs, images, archives)
-- URL normalization that collapses `/`, `/index.html`, etc., to a single canonical URL
-- Issue detection that **skips error pages** so 404s don't get double-flagged as "missing meta description"
-- Cross-page broken-link detection — flags the *linking* page, not just the broken target
-- Health score with four explainable grade bands (Excellent / Good / Needs Improvement / Critical)
-- AI Assistant powered by Gemini, with:
-  - per-issue page-context (current title, H1, meta) passed into the prompt
-  - structured JSON output schema for predictable rendering
-  - in-session cache so re-clicking doesn't burn quota
-  - per-session call limit (cost guardrail, configurable in `.env`)
-  - graceful fallback when the API key is missing or the API fails
-- Streamlit UI with dashboard cards, visual health-score gauge,
-  severity filtering, color-coded issues table, and a working AI panel
-- CSV export (issues + pages)
-- Print-ready PDF report
-- **88 unit tests** covering URL utilities, the analyzer, scoring, and reports
+- URL normalization that collapses `/`, `/index.html`, etc. to a canonical URL
+- Cross-page broken-link detection — flags the *linking* page, with optional live re-verification to drop transient anti-bot 404s
+- Eight analyzers: SEO, accessibility, performance, TLS/transport security, security headers, cookies, information disclosure, privacy/trackers, and schema.org
+- Health score with per-page model and per-category sub-scores, plus four grade bands (Excellent / Good / Needs Improvement / Critical)
+- AI Assistant powered by Gemini:
+  - per-issue page-context passed into the prompt
+  - structured JSON output for predictable rendering
+  - grounded chatbot and scan-diff root-cause explainer
+  - graceful deterministic fallback when no API key is set or the API fails
+- Local SQLite scan history with two-scan diff
+- React SPA: dashboard, score gauge, category cards, issue board, AI drawer, history, reports
+- CSV export (issues + pages) and print-ready PDF report
+- **369 unit tests** across crawler, analyzers, scoring, AI, database, serializers, and the API
 - Bundled local test site with intentionally seeded bugs for stable demos
 
 ---
@@ -73,27 +79,35 @@ predictable, testable, and easy to defend.
 ## Project structure
 
 ```
-web-health-seo-crawler/
-├── app.py                   # Streamlit UI (entry point)
-├── serve_test_site.py       # Local test site server (port 8000)
-├── requirements.txt
-├── pytest.ini
-├── conftest.py
-├── .env.example             # Template — copy to .env and add your key
-├── .gitignore
-├── README.md
+Web Health & SEO Crawler/
+├── api/                     # FastAPI layer (thin wrapper over the backend)
+│   ├── main.py              # Endpoints: scan, history, diff, reports, AI
+│   └── serializers.py       # Dataclass -> JSON
 │
 ├── crawler/                 # Site crawler
 │   ├── crawler.py           # BFS + concurrency + robots.txt
 │   └── url_utils.py         # normalize, is_internal, extract_links, ...
 │
 ├── analyzer/                # Rule-based issue detection
-│   ├── seo_analyzer.py      # 7 SEO / health checks
-│   └── scoring.py           # 0-100 health score
+│   ├── seo_analyzer.py      # Orchestrates all analyzers
+│   ├── accessibility.py     # Accessibility checks
+│   ├── performance.py       # Page weight / response-time checks
+│   ├── tls.py               # Live TLS / certificate checks
+│   ├── security.py          # Security headers, cookies, info disclosure
+│   ├── privacy.py           # Third-party trackers
+│   ├── exposed_paths.py     # Sensitive-path probing (opt-in)
+│   ├── schema_org.py        # schema.org structured-data checks
+│   └── scoring.py           # 0-100 health score + per-category sub-scores
 │
-├── ai/                      # AI Assistant
-│   ├── ai_assistant.py      # Gemini integration + fallback
+├── ai/                      # AI Assistant (Gemini + deterministic fallback)
+│   ├── ai_assistant.py      # Per-issue explain + fix
+│   ├── chatbot.py           # Grounded chatbot
+│   ├── root_cause.py        # Scan-diff explanation
 │   └── prompts.py           # Prompt templates
+│
+├── database/                # SQLite scan history
+│   ├── db.py                # save_scan, get_scan, list_scans, get_diff
+│   └── schema.sql
 │
 ├── reports/                 # Export
 │   ├── csv_exporter.py      # Issues + Pages CSV
@@ -102,110 +116,157 @@ web-health-seo-crawler/
 ├── models/                  # Shared dataclasses
 │   └── result_models.py     # PageResult, Issue, ScoreResult, ScanResult
 │
-├── sample_sites/            # Local test site + ground truth
-│   ├── README.md            # Documents the seeded bugs (ground truth)
-│   └── test_site/           # 8 HTML pages with intentional issues
+├── frontend/                # React + Vite SPA (see frontend/README.md)
+│   ├── vite.config.js       # dev server + /api proxy to :8001
+│   └── src/
+│       ├── App.jsx          # routes + dashboard shell
+│       ├── api.js           # API client
+│       ├── screens/         # Landing, Overview, Scan, Issues, Chat,
+│       │                    #   Reports, History, Settings
+│       ├── components/      # Sidebar, ScoreGauge, AiFixDrawer, ...
+│       ├── state/           # ScanContext (shared scan result)
+│       ├── lib/             # categoryMeta, humanize helpers
+│       └── styles/theme.css # design system
 │
-└── tests/                   # 88 unit tests
-    ├── test_url_utils.py
-    ├── test_analyzer.py
-    ├── test_scoring.py
-    └── test_reports.py
+├── sample_sites/            # Local test site + documented ground truth
+│   └── test_site/           # HTML pages with intentional issues
+│
+├── tests/                   # 369 unit tests
+├── serve_test_site.py       # Local test-site server (port 8000)
+├── run_dev.sh               # Start API + test site + frontend together
+├── run_api.sh               # Start just the API
+├── requirements.txt
+├── pytest.ini
+├── conftest.py
+└── .env.example             # Template — copy to .env and add your key
 ```
 
 ---
 
 ## Setup
 
-### 1. Clone
-
-```bash
-git clone https://github.com/<your-user>/web-health-seo-crawler.git
-cd web-health-seo-crawler
-```
-
-### 2. Create a virtual environment
+### 1. Python backend
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate        # macOS / Linux
-# venv\Scripts\activate         # Windows
-```
-
-### 3. Install dependencies
-
-```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure the Gemini API key
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+### 3. Configure the Gemini API key (optional)
 
 Get a free key at https://aistudio.google.com/app/apikey, then:
 
 ```bash
 cp .env.example .env
-# Open .env in your editor and paste the key after GEMINI_API_KEY=
+# Open .env and paste the key after GEMINI_API_KEY=
 ```
 
-If you skip this step the app still runs — the AI Assistant just returns
-a deterministic built-in answer instead of calling Gemini.
+If you skip this step the app still runs — the AI features return a
+deterministic built-in answer instead of calling Gemini.
 
 ---
 
 ## Running the app
 
+The simplest way is the all-in-one dev script, which starts the API
+(:8001), the bundled test site (:8000), and the frontend (:5173):
+
 ```bash
-streamlit run app.py
+./run_dev.sh
 ```
 
-The UI opens at http://localhost:8501.
+Then open **http://localhost:5173**.
+
+To run pieces individually:
+
+```bash
+./run_api.sh                          # API only, on :8001
+python serve_test_site.py             # bundled test site, on :8000
+cd frontend && npm run dev            # frontend, on :5173
+```
+
+The API is documented interactively at http://localhost:8001/docs.
+
+---
+
+## Frontend
+
+The UI is a React 18 + Vite single-page app under `frontend/`, routed with
+React Router. In development the Vite server (:5173) proxies `/api/*` to the
+FastAPI backend (:8001), so the frontend uses relative URLs and there's no CORS
+setup needed. See `frontend/README.md` for full details.
+
+| Path        | Screen   | What it does                                          |
+|-------------|----------|-------------------------------------------------------|
+| `/`         | Landing  | Marketing landing page (full-bleed, no sidebar)       |
+| `/app`      | Overview | Score gauge, metric cards, health-by-category, action plan |
+| `/scan`     | Scan     | Configure and run a scan (URL, depth, TLS toggles)    |
+| `/issues`   | Issues   | Searchable/filterable issue board + AI "Explain & Fix" drawer |
+| `/ai`       | Chat     | Grounded "Ask Your Site" AI chat                      |
+| `/reports`  | Reports  | Download Issues CSV, Pages CSV, and the PDF report    |
+| `/history`  | History  | Score-over-time chart + two-scan compare with AI root cause |
+| `/settings` | Settings | System / AI status                                    |
+
+The design makes the architecture explicit with "Detected by SitePulse
+Analyzer · Explained by AI" trust labels — deterministic detection, AI only
+explains.
+
+To build the frontend for production:
+
+```bash
+cd frontend
+npm run build       # outputs to frontend/dist/
+npm run preview     # preview the production build locally
+```
 
 ---
 
 ## Running the bundled test site
 
-To work offline (and to get a stable demo for the project defense):
+To work offline and get a stable demo:
 
-```bash
-# In one terminal:
-python serve_test_site.py
+1. Start everything with `./run_dev.sh`.
+2. In the UI, scan `http://localhost:8000`.
 
-# In another terminal:
-streamlit run app.py
-# then scan http://localhost:8000 from the sidebar
-```
-
-The test site lives in `sample_sites/test_site/` and contains 8 pages with
+The test site lives in `sample_sites/test_site/` and contains pages with
 intentionally seeded bugs documented in `sample_sites/README.md`.
-
-Expected scan results: 9 pages crawled (8 reachable + 1 broken link to a
-non-existent `/portfolio.html`), **11 issues**, **Health Score 34/100
-(Critical)**.
 
 ---
 
 ## Running the tests
 
 ```bash
-pytest
+pytest -q
 ```
 
-Expected: **88 passed** in < 1 second. The tests do not require the test
-site to be running — every test uses in-memory HTML fixtures.
+Expected: **369 passed** in a few seconds. The tests use in-memory HTML
+fixtures and do not require the test site or the API to be running.
 
 ---
 
-## How the scan results are computed
+## How the health score is computed
 
-The health score uses a deliberately simple, explainable formula:
+The score uses an explainable per-page model:
 
 ```
-score = 100
-      - 10 × (number of High-severity issues)
-      -  5 × (number of Medium-severity issues)
-      -  2 × (number of Low-severity issues)
-clamped to [0, 100]
+For each page:
+    penalty    = 10×High + 5×Medium + 2×Low   (that page's issues)
+    penalty    = min(penalty, 100)
+    page_score = 100 - penalty
+overall_score  = average(page_score over all pages)
 ```
+
+The same method restricted to one category at a time yields a per-category
+sub-score (SEO, Accessibility, Performance, Security, Schema, ...).
 
 | Score range | Grade               |
 |-------------|---------------------|
@@ -214,42 +275,8 @@ clamped to [0, 100]
 | 50 – 74     | Needs Improvement   |
 |  0 – 49     | Critical            |
 
-A user can always point at the dashboard and say "I lost N points because
-of these M issues" — no black-box ML inside the scoring.
-
----
-
-## Demo flow (suggested for the project defense)
-
-1. Start the test site (`python serve_test_site.py`).
-2. Start Streamlit (`streamlit run app.py`).
-3. In the sidebar, enter `http://localhost:8000` and click **Scan**.
-4. Walk through the dashboard cards and the health-score gauge.
-5. Open the issues table, sort by severity, filter to High only.
-6. In the AI Assistant, pick **Missing Title — /about.html** and click
-   **Ask AI for Fix**. Show the simple explanation, why-it-matters, and
-   the ready-to-paste `<title>` snippet.
-7. Click **Issues CSV** and **PDF Report** to demonstrate export.
-
-Talking points:
-- The crawler detects the technical issue.
-- The analyzer classifies it (severity, type).
-- The AI explains how to fix it in plain language.
-- The report lets the user keep working after the scan is over.
-
----
-
-## Out of scope (Future improvements)
-
-The prototype intentionally does **not** include:
-- User accounts / authentication
-- Persistent database / scan history
-- Cloud hosting / SaaS
-- Scheduled scans
-- Auto-fix that actually modifies the target site
-- Direct integrations with WordPress / Wix / Shopify
-
-Adding any of these would be a natural next step after the prototype.
+No black-box ML in the scoring — a user can always point at the dashboard and
+say "I lost N points because of these M issues."
 
 ---
 
