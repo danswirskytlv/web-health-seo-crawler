@@ -9,7 +9,7 @@ We provide two flavors so the user can pick what they actually need:
 - `issues_to_csv(scan_result)` — one row per issue. This is the usual export
   an SEO specialist sends to a developer or a client.
 - `pages_to_csv(scan_result)` — one row per crawled page (URL, status code,
-  response time). Useful for "did the crawl reach everything?" checks.
+  response time, error). Useful for "did the crawl reach everything?" checks.
 
 Both return strings, not files, so the API can stream them as a download
 (in-memory) without touching the filesystem.
@@ -74,7 +74,6 @@ PAGE_COLUMNS = [
     "URL",
     "HTTP Status",
     "Response Time (s)",
-    "Outbound Links",
     "Error",
 ]
 
@@ -90,7 +89,6 @@ def pages_to_csv(scan: ScanResult) -> str:
             page.url,
             page.status_code if page.status_code is not None else "",
             f"{page.response_time:.3f}" if page.response_time is not None else "",
-            len(page.links),
             page.error or "",
         ])
 
