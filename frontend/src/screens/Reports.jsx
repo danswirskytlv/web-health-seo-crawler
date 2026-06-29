@@ -1,25 +1,26 @@
 import PageHeader from "../components/PageHeader.jsx";
 import { useScan } from "../state/ScanContext.jsx";
 import { api } from "../api.js";
+import { ChartIcon, DocIcon, PdfIcon, ArrowDownIcon } from "../components/Icons.jsx";
 
 const REPORTS = [
   {
     kind: "issues.csv",
-    icon: "📊",
+    Icon: ChartIcon,
     title: "Issues CSV",
     desc: "Every detected issue with severity, category, page and description.",
     type: "CSV",
   },
   {
     kind: "pages.csv",
-    icon: "📄",
+    Icon: DocIcon,
     title: "Pages CSV",
     desc: "Every page scanned, with status code and response time.",
     type: "CSV",
   },
   {
     kind: "report.pdf",
-    icon: "📕",
+    Icon: PdfIcon,
     title: "PDF Health Report",
     desc: "A polished report with the health score, issues and fixes — ready to send to a client or lecturer.",
     type: "PDF",
@@ -50,19 +51,22 @@ export default function Reports() {
       />
 
       <div className="grid cols-3">
-        {REPORTS.map((r) => (
-          <div key={r.kind} className="card hover">
-            <div style={{ fontSize: "1.6rem" }}>{r.icon}</div>
-            <div style={{ fontWeight: 700, marginTop: 6 }}>{r.title}</div>
-            <div className="muted mt-2" style={{ lineHeight: 1.5, minHeight: 48 }}>{r.desc}</div>
-            <div className="flex items-center justify-between mt-3">
-              <span className="badge">{r.type}</span>
-              <a className="btn primary" href={api.reportUrl(scan.scanId, r.kind)}>
-                ⬇ Download
-              </a>
+        {REPORTS.map((r) => {
+          const Icon = r.Icon;
+          return (
+            <div key={r.kind} className="card hover">
+              <div style={{ color: "var(--cyan)" }}><Icon size={28} /></div>
+              <div style={{ fontWeight: 700, marginTop: 8 }}>{r.title}</div>
+              <div className="muted mt-2" style={{ lineHeight: 1.5, minHeight: 48 }}>{r.desc}</div>
+              <div className="flex items-center justify-between mt-3">
+                <span className="badge">{r.type}</span>
+                <a className="btn primary" href={api.reportUrl(scan.scanId, r.kind)}>
+                  <ArrowDownIcon size={15} /> Download
+                </a>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="card mt-3" style={{ marginTop: 18 }}>

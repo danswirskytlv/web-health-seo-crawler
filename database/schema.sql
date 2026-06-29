@@ -93,7 +93,11 @@ CREATE TABLE IF NOT EXISTS issues (
 
     -- Convenience snapshot copied from the page at scan time.
     status_code     INTEGER,
-    response_time   REAL
+    response_time   REAL,
+
+    -- Optional structured payload as JSON (e.g. the grouped 404 note's full
+    -- list of URLs). NULL for ordinary issues.
+    details         TEXT
 );
 
 

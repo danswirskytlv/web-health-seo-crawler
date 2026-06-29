@@ -30,7 +30,113 @@ def issue_to_dict(issue: "Issue") -> dict:
         "recommendation": issue.recommendation,
         "statusCode": issue.status_code,
         "responseTime": issue.response_time,
+        # Optional structured payload (e.g. the 404 note's full URL list).
+        "details": getattr(issue, "details", None),
     }
+
+
+# --- Issue de-duplication (display layer) ---------------------------------
+
+# When a single page has more than this many of the same issue type (e.g. lots
+# of alt-less images), collapse them into one summary row for that page.
+PER_PAGE_GROUP_THRESHOLD = 3
+
+
+def _group_per_page(issues) -> list:
+    """
+    Collapse repeated same-type issues ON THE SAME PAGE into one summary issue.
+
+    Example: a /products page with 12 images missing alt text becomes a single
+    "12 images on this page need alt text" entry, instead of 12 rows. Only
+    triggers when a page has MORE than PER_PAGE_GROUP_THRESHOLD of that type;
+    pages with a few keep their individual rows so small cases stay specific.
+
+    Returns a mixed list of original Issue objects and synthetic dicts (the
+    grouped summaries carry their own pre-built dict).
+    """
+    # Bucket by (url, issue_type).
+    buckets: dict = {}
+    order: list = []
+    for i in issues:
+        key = (i.url, i.issue_type)
+        if key not in buckets:
+            buckets[key] = []
+            order.append(key)
+        buckets[key].append(i)
+
+    out: list = []
+    for key in order:
+        group = buckets[key]
+        if len(group) > PER_PAGE_GROUP_THRESHOLD:
+            rep = group[0]
+            noun = _group_noun(rep.issue_type, len(group))
+            d = issue_to_dict(rep)
+            d["description"] = (
+                f"{len(group)} {noun} on this page. {rep.description}"
+            )
+            d["affectedPages"] = 1
+            d["affectedUrls"] = [rep.url]
+            d["groupedCount"] = len(group)  # how many instances on this page
+            d["_grouped"] = True
+            out.append(d)
+        else:
+            out.extend(group)
+    return out
+
+
+def _group_noun(issue_type: str, count: int) -> str:
+    """A human phrase for a grouped page-level summary."""
+    plural = {
+        "Image Missing Alt": "images need alt text",
+        "Form Input Without Label": "form fields are missing labels",
+        "Generic Link Text": "links use vague text",
+        "Skipped Heading Level": "headings skip levels",
+    }.get(issue_type)
+    if plural:
+        return plural
+    return f"instances of “{issue_type}”"
+
+
+def dedupe_issues(issues) -> list[dict]:
+    """
+    Build the display issue list with two passes of grouping:
+
+    1. PER-PAGE: many of the same issue on one page (e.g. 12 alt-less images)
+       become one summary row for that page (see _group_per_page).
+    2. CROSS-PAGE: identical issues that differ only by URL (same type +
+       description across pages) collapse into one row with an "affectedPages"
+       count.
+
+    Purely a DISPLAY concern — scoring still uses the raw issue list.
+    """
+    pre = _group_per_page(issues)
+
+    groups: dict = {}
+    order: list = []
+    for item in pre:
+        if isinstance(item, dict):
+            # Already-grouped per-page summary — pass it through as-is.
+            order.append(id(item))
+            groups[id(item)] = {"dict": item}
+            continue
+        i = item
+        key = (i.issue_type, i.category, i.severity, i.description)
+        if key not in groups:
+            groups[key] = {"rep": i, "urls": []}
+            order.append(key)
+        groups[key]["urls"].append(i.url)
+
+    out = []
+    for key in order:
+        g = groups[key]
+        if "dict" in g:
+            out.append(g["dict"])
+            continue
+        d = issue_to_dict(g["rep"])
+        d["affectedPages"] = len(g["urls"])
+        d["affectedUrls"] = g["urls"][:20]
+        out.append(d)
+    return out
 
 
 # --- Score / category breakdown -------------------------------------------
@@ -73,7 +179,10 @@ def scan_result_to_dict(scan: "ScanResult", scan_id: Optional[int] = None) -> di
             "lowCount": severity_counts["Low"],
         },
         "categoryScores": _category_scores_list(s),
-        "issues": [issue_to_dict(i) for i in scan.issues],
+        # Deduped for display: identical issues across pages become one grouped
+        # row with an "affectedPages" count. Scoring still uses the raw list.
+        "issues": dedupe_issues(scan.issues),
+        "uniqueIssueCount": len(dedupe_issues(scan.issues)),
     }
 
 

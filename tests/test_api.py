@@ -136,3 +136,71 @@ class TestAiFix:
         body = r.json()
         assert body["source"] == "fallback"
         assert "suggested_fix" in body
+
+
+# --- Regression guards for the reported bugs ------------------------------
+
+class TestBrokenLinkAndDedupeViaApi:
+    """End-to-end through the API: no false 200/429 broken-links, deduped."""
+
+    def _crawl_with_issues(self, monkeypatch):
+        # Home (200) links to a real 404 and a rate-limited 429. Many pages
+        # share the SAME missing-meta issue (to exercise de-duplication).
+        def fake_crawl(root_url, **kwargs):
+            home_html = (
+                "<html><head><title>t</title></head><body><h1>h</h1>"
+                f'<a href="{root_url}gone">x</a>'
+                f'<a href="{root_url}rate">y</a>'
+                "</body></html>"
+            )
+            # 5 pages all missing a meta description (same issue, different URL).
+            dup_pages = [
+                PageResult(url=f"{root_url}p{i}", status_code=200, response_time=0.1,
+                           html="<html><head><title>t</title></head><body><h1>h</h1></body></html>",
+                           final_url=f"{root_url}p{i}")
+                for i in range(5)
+            ]
+            return [
+                PageResult(url=root_url, status_code=200, response_time=0.1,
+                           html=home_html, links=[root_url + "gone", root_url + "rate"],
+                           final_url=root_url),
+                PageResult(url=root_url + "gone", status_code=404, response_time=0.1,
+                           html=None, final_url=root_url + "gone"),
+                PageResult(url=root_url + "rate", status_code=429, response_time=0.1,
+                           html=None, final_url=root_url + "rate"),
+                *dup_pages,
+            ]
+        monkeypatch.setattr(api_main, "crawl_site", fake_crawl)
+
+    def test_no_200_or_429_broken_links(self, client, monkeypatch):
+        self._crawl_with_issues(monkeypatch)
+        body = client.post("/api/scan", json={"url": "http://test.local/", "save": False}).json()
+        for issue in body["issues"]:
+            if issue["issueType"] == "Broken Link":
+                # Every broken-link row must reference a genuine 404/410 —
+                # never a 200 or 429.
+                assert "HTTP 200" not in issue["description"]
+                assert "429" not in issue["description"]
+
+    def test_duplicate_issues_are_deduped(self, client, monkeypatch):
+        self._crawl_with_issues(monkeypatch)
+        body = client.post("/api/scan", json={"url": "http://test.local/", "save": False}).json()
+        metas = [i for i in body["issues"] if i["issueType"] == "Missing Meta Description"]
+        # 5 pages share the issue -> ONE display row with affectedPages >= 5.
+        assert len(metas) == 1
+        assert metas[0]["affectedPages"] >= 5
+
+
+class TestReportDownloads:
+    def test_pdf_report_downloads(self, client):
+        sid = client.post("/api/scan", json={"url": "http://test.local/"}).json()["scanId"]
+        r = client.get(f"/api/scans/{sid}/report/report.pdf")
+        assert r.status_code == 200
+        assert r.content[:4] == b"%PDF"
+        assert "attachment" in r.headers.get("content-disposition", "")
+
+    def test_issues_csv_downloads(self, client):
+        sid = client.post("/api/scan", json={"url": "http://test.local/"}).json()["scanId"]
+        r = client.get(f"/api/scans/{sid}/report/issues.csv")
+        assert r.status_code == 200
+        assert "text/csv" in r.headers.get("content-type", "")

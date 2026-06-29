@@ -19,7 +19,7 @@ Like the other AI modules it mirrors ai/ai_assistant.py:
 - Any failure (no key, network, etc.) degrades to a graceful fallback message
   so the chat UI never shows a stack trace.
 
-The actual conversation memory lives in the Streamlit page's session_state;
+The actual conversation memory lives in the frontend (passed through the API);
 this module is stateless and is handed the history on each call.
 """
 

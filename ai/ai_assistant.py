@@ -35,13 +35,17 @@ from typing import Optional
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-from ai.prompts import SYSTEM_INSTRUCTION, build_user_prompt
+from ai.prompts import (
+    SYSTEM_INSTRUCTION,
+    build_pages_404_prompt,
+    build_user_prompt,
+)
 from models.result_models import Issue, PageResult
 
 logger = logging.getLogger(__name__)
 
 # Load environment variables from .env at import time so that any caller
-# (Streamlit, CLI, tests) sees them.
+# (the API, CLI, tests) sees them.
 load_dotenv()
 
 
@@ -251,17 +255,26 @@ def generate_ai_fix(
         logger.exception("Failed to initialize Gemini model")
         return _fallback_response(issue, reason=f"could not initialize Gemini ({exc})")
 
-    context = extract_page_context(page)
-    prompt = build_user_prompt(
-        url=issue.url,
-        issue_type=issue.issue_type,
-        severity=issue.severity,
-        description=issue.description,
-        recommendation=issue.recommendation,
-        title=context["title"],
-        h1=context["h1"],
-        meta_description=context["meta_description"],
-    )
+    # The grouped "Pages Returning 404" note carries a list of URLs in
+    # issue.details["urls"]. It needs a different prompt — one that analyzes
+    # the actual URLs for patterns (e.g. malformed external links) instead of
+    # the single-issue/single-page template.
+    details = getattr(issue, "details", None) or {}
+    urls_404 = details.get("urls") if isinstance(details, dict) else None
+    if urls_404:
+        prompt = build_pages_404_prompt(root_url=issue.url, urls=urls_404)
+    else:
+        context = extract_page_context(page)
+        prompt = build_user_prompt(
+            url=issue.url,
+            issue_type=issue.issue_type,
+            severity=issue.severity,
+            description=issue.description,
+            recommendation=issue.recommendation,
+            title=context["title"],
+            h1=context["h1"],
+            meta_description=context["meta_description"],
+        )
 
     try:
         result = model.generate_content(prompt)

@@ -189,6 +189,12 @@ class Issue:
     # (accessibility, performance, security, schema) will override this.
     category: str = CATEGORY_SEO
 
+    # Optional structured payload for issues that carry more than free text.
+    # Example: the grouped "Pages Returning 404" note stores the full list of
+    # 404 URLs here (under "urls") so the UI can render them as a clean list
+    # instead of parsing them out of the description string.
+    details: Optional[dict] = None
+
     def __post_init__(self) -> None:
         # Cheap sanity check — catches typos like "high" or "Hgih".
         if self.severity not in VALID_SEVERITIES:

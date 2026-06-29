@@ -4,10 +4,10 @@ main.py
 
 sitePulse API — a thin FastAPI layer over the existing backend.
 
-This module adds NO analysis logic. Every endpoint just calls the functions
-that already power the Streamlit app (crawl_site, analyze_pages,
-calculate_score, the DB layer, the AI modules) and returns JSON via the
-serializers. The React frontend talks only to this API.
+This module adds NO analysis logic. Every endpoint just calls the backend
+functions (crawl_site, analyze_pages, calculate_score, the DB layer, the AI
+modules) and returns JSON via the serializers. The React frontend talks only
+to this API.
 
 Run it (on your machine):
     uvicorn api.main:app --reload --port 8001
@@ -78,6 +78,7 @@ class ScanRequest(BaseModel):
     respectRobots: bool = True
     checkTls: bool = True
     checkExposedPaths: bool = False
+    verifyBrokenLinks: bool = True
     save: bool = True
 
 
@@ -90,6 +91,9 @@ class IssueModel(BaseModel):
     recommendation: str = ""
     statusCode: Optional[int] = None
     responseTime: Optional[float] = None
+    # Structured payload (e.g. the 404 note's list of URLs) so the AI can
+    # analyze the real data instead of just the description string.
+    details: Optional[dict] = None
 
 
 class AiFixRequest(BaseModel):
@@ -142,6 +146,9 @@ def run_scan(req: ScanRequest) -> dict:
         pages,
         check_tls=req.checkTls,
         check_exposed_paths=req.checkExposedPaths,
+        # Live scan: re-verify candidate broken links to filter out transient
+        # anti-bot 404s before reporting them.
+        verify_broken_links=req.verifyBrokenLinks,
     )
     score = calculate_score(issues, pages)
     scan = ScanResult(root_url=req.url, pages=pages, issues=issues, score=score)
@@ -230,6 +237,7 @@ def _issue_from_model(m: IssueModel) -> Issue:
         recommendation=m.recommendation,
         status_code=m.statusCode,
         response_time=m.responseTime,
+        details=m.details,
     )
 
 

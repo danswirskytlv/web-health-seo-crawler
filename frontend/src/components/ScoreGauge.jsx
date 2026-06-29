@@ -72,6 +72,8 @@ export default function ScoreGauge({ score = 0, grade, size = 200 }) {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          // Nudge the stack up so a long grade label clears the bottom arc.
+          paddingBottom: size * 0.08,
         }}
       >
         <div style={{ fontSize: size * 0.26, fontWeight: 800, lineHeight: 1, color: "var(--text)" }}>
@@ -80,7 +82,19 @@ export default function ScoreGauge({ score = 0, grade, size = 200 }) {
         <div style={{ color: "var(--text-muted)", fontSize: size * 0.07, marginTop: 2 }}>
           / 100
         </div>
-        <div style={{ color, fontWeight: 700, fontSize: size * 0.08, marginTop: 8 }}>
+        <div
+          style={{
+            color,
+            fontWeight: 700,
+            fontSize: size * 0.075,
+            marginTop: 8,
+            // Keep the label on one line, centered, and clear of the arc.
+            maxWidth: size * 0.82,
+            textAlign: "center",
+            lineHeight: 1.15,
+            whiteSpace: "nowrap",
+          }}
+        >
           {label}
         </div>
       </div>

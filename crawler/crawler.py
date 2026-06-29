@@ -54,7 +54,16 @@ from models.result_models import PageResult
 
 # --- Configuration --------------------------------------------------------
 
-USER_AGENT = "WebHealthSEOCrawler/1.0 (BSc final project; +https://github.com/)"
+# A realistic, current-browser User-Agent. Many sites (Shopify stores, CDNs,
+# WAFs) return 403/404 to requests with an obviously-bot User-Agent as an
+# anti-scraping measure — which produced false "broken link" findings. Looking
+# like a normal Chrome browser avoids that. We still crawl politely (delays,
+# robots.txt) so this isn't abusive.
+USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36 SitePulse/1.0"
+)
 
 DEFAULT_MAX_PAGES = 50
 DEFAULT_MAX_DEPTH = 2

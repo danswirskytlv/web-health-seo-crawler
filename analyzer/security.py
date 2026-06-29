@@ -174,10 +174,12 @@ def _check_https(page: PageResult) -> list[Issue]:
         issue_type=SEC_NO_HTTPS,
         severity=SEVERITY_HIGH,
         category=CATEGORY_TRANSPORT_SECURITY,
+        # Description is intentionally page-agnostic (no per-page URL) so this
+        # site-wide issue de-duplicates into a single row across all pages.
         description=(
-            f"The page is served over plain HTTP ({_effective_url(page)}). "
-            "Traffic can be read or modified in transit, and modern browsers "
-            "mark the page as 'Not secure'."
+            "The site is served over plain HTTP instead of HTTPS. Traffic can "
+            "be read or modified in transit, and modern browsers mark the site "
+            "as 'Not secure'."
         ),
         recommendation=(
             "Obtain a TLS certificate (e.g. via Let's Encrypt) and serve the "

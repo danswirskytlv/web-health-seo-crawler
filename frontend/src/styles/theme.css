@@ -5,32 +5,42 @@
    whole product stays consistent and is easy to retune.
    ============================================================ */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+/* Fonts loaded in index.html: General Sans (UI) + IBM Plex Mono (data). */
 
 :root {
-  /* --- Surfaces --- */
-  --bg: #0b1220;            /* deep navy app background */
+  /* --- Accent: the SIGNAL hue. --cyan aliases it so every existing
+         var(--cyan) reference retunes automatically. The runtime default is
+         ALSO written to <html> from main.jsx so a tweaks layer can't win. --- */
+  --signal: #34d2f2;
+  --signal-h: 216;
+  --signal-glow: rgba(52, 210, 242, 0.35);
+  --signal-soft: rgba(52, 210, 242, 0.14);
+  --signal-faint: rgba(52, 210, 242, 0.06);
+  --cyan: var(--signal);
+  --cyan-glow: var(--signal-glow);
+  --blue: #2f8fe0;
+
+  /* --- Surfaces (cool, blue-tinted navy) --- */
+  --bg: #0b1220;
   --bg-2: #0e1626;
-  --panel: #121a2b;        /* card / sidebar base */
+  --panel: #121a2b;
   --panel-glass: rgba(18, 26, 43, 0.6);
-  --border: #243149;       /* thin borders */
+  --border: #243149;
   --border-soft: rgba(36, 49, 73, 0.6);
 
-  /* --- Text --- */
-  --text: #e6edf6;         /* primary light-gray/white */
-  --text-muted: #94a3b8;   /* secondary */
-  --text-dim: #64748b;
+  /* --- Text (cool ink ramp) --- */
+  --text: #e8eef9;
+  --text-muted: #93a6c2;
+  --text-dim: #61748f;
 
-  /* --- Brand --- */
-  --cyan: #22d3ee;         /* primary brand accent */
-  --blue: #3b82f6;
-  --cyan-glow: rgba(34, 211, 238, 0.35);
-
-  /* --- Status --- */
-  --green: #34d399;        /* healthy */
+  /* --- Status. green→cyan sweep: "healthy" now reads as signal cyan
+         instead of green; warning/critical unchanged.
+           healthy  #34d399 ─► var(--signal)
+           healthy-bg        ─► var(--signal-soft)  --- */
+  --green: var(--signal);
+  --green-bg: var(--signal-soft);
   --amber: #fbbf24;        /* warning */
   --red: #f87171;          /* critical */
-  --green-bg: rgba(52, 211, 153, 0.12);
   --amber-bg: rgba(251, 191, 36, 0.12);
   --red-bg: rgba(248, 113, 113, 0.12);
   --blue-bg: rgba(59, 130, 246, 0.14);
@@ -40,14 +50,26 @@
   --radius-lg: 20px;
   --radius-sm: 10px;
   --shadow: 0 10px 34px rgba(0, 0, 0, 0.28);
-  --shadow-glow: 0 8px 26px rgba(34, 211, 238, 0.18);
+  --shadow-glow: 0 8px 26px var(--signal-soft);
 
   /* --- Layout --- */
   --rail-w: 232px;
   --gap: 18px;
 
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  /* --- Type. General Sans for UI, IBM Plex Mono for data/labels, no serif
+         (--serif points at --sans so legacy serif refs degrade safely). --- */
+  --sans: "General Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+  --serif: var(--sans);
+  --font: var(--sans);     /* legacy alias */
+
+  /* --- Motion gate for the EKG (0 freezes it; reduced-motion/print force off). --- */
+  --motion: 1;
+  --motion-play: running;
+  --ekg-baseline: rgba(147, 166, 194, 0.22);
+  --ekg-speed: 3.4s;
 }
 
 /* App content wrapper keeps the dashboard from going full-bleed on big screens */
@@ -57,18 +79,23 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
 body {
-  font-family: var(--font);
+  font-family: var(--sans);
   color: var(--text);
   background:
-    radial-gradient(1200px 600px at 12% -8%, rgba(34, 211, 238, 0.08), transparent 60%),
-    radial-gradient(1000px 520px at 108% 8%, rgba(59, 130, 246, 0.07), transparent 55%),
+    radial-gradient(1200px 600px at 12% -8%, var(--signal-faint), transparent 60%),
+    radial-gradient(1000px 520px at 108% 8%, rgba(47, 143, 224, 0.06), transparent 55%),
     var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
-::selection { background: rgba(34, 211, 238, 0.3); }
+::selection { background: var(--signal-glow); }
+
+/* Code / numbers / mono labels use the mono face. */
+code, pre, kbd, samp, .mono { font-family: var(--mono); }
+/* Emphasis via weight + color, never slanted type. */
+em, i, cite, var, dfn, address { font-style: normal; }
 
 /* --- Scrollbars (subtle, dark) --- */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -104,7 +131,11 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   gap: 10px;
   padding: 6px 8px 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: opacity 0.15s ease;
 }
+.rail .brand:hover { opacity: 0.85; }
 .rail .brand .wordmark {
   font-weight: 700;
   font-size: 1.2rem;
@@ -141,7 +172,13 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text);
   box-shadow: inset 2px 0 0 var(--cyan);
 }
-.rail .nav-item .ico { width: 18px; text-align: center; opacity: 0.95; }
+.rail .nav-item .ico {
+  width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.95;
+}
 .rail .rail-footer { margin-top: auto; color: var(--text-dim); font-size: 0.72rem; padding: 8px 10px; }
 
 /* --- Main content area --- */
@@ -320,3 +357,249 @@ button { font-family: inherit; cursor: pointer; }
 }
 .action-row .meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: .78rem; }
 .action-row .meta b { color: var(--text); font-weight: 600; }
+
+/* ============================================================
+   EKG / PulseLine motif
+   A dim baseline trace with a short bright "signal" segment that travels
+   along it (stroke-dashoffset). Motion is gated by --motion-play and forced
+   off under reduced-motion + print.
+   ============================================================ */
+.pulseline { display: block; width: 100%; height: auto; overflow: visible; }
+.pulseline .ekg-base {
+  fill: none;
+  stroke: var(--ekg-baseline);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pulseline .ekg-glow {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px var(--signal-glow));
+  stroke-dasharray: 46 1000;
+  stroke-dashoffset: 1046;
+  animation: ekg-travel var(--ekg-speed) linear infinite;
+  animation-play-state: var(--motion-play, running);
+}
+@keyframes ekg-travel { to { stroke-dashoffset: 0; } }
+
+/* --- Centered hero brand lockup (opening / empty screen) --- */
+.hero-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.hero-lockup .mark-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hero-lockup .wordmark-xl {
+  font-weight: 800;
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.hero-lockup .wordmark-xl .site { color: var(--text); }
+.hero-lockup .wordmark-xl .pulse {
+  color: var(--signal);
+  text-shadow: 0 0 26px var(--signal-glow);
+}
+
+/* The "BPM · 72  /  SIGNAL · LIVE" rail wrapping a PulseLine. */
+.signal-rail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 520px;
+  margin: 6px auto 0;
+}
+.signal-rail .cap {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.signal-rail .cap b { color: var(--signal); font-weight: 600; }
+.signal-rail .pulseline { flex: 1; }
+
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--signal); box-shadow: 0 0 10px var(--signal);
+  animation: pulse-dot 1.4s ease-in-out infinite;
+  animation-play-state: var(--motion-play, running);
+}
+
+/* ============================================================
+   Landing / home page (full-bleed, no sidebar)
+   ============================================================ */
+
+.label-mono {
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.landing {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 520px at 50% -6%, var(--signal-faint), transparent 60%),
+    radial-gradient(700px 500px at 50% 120%, rgba(47, 143, 224, 0.05), transparent 60%),
+    var(--bg);
+}
+
+/* faint dotted grid backdrop */
+.landing-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(147, 166, 194, 0.10) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 35%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 35%, #000 30%, transparent 75%);
+  pointer-events: none;
+}
+
+.landing-header,
+.landing-hero,
+.landing-footer { position: relative; z-index: 1; }
+
+/* --- Header --- */
+.landing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 34px;
+  gap: 16px;
+}
+.landing-brand { display: flex; align-items: center; gap: 10px; }
+.landing-brand .wordmark { font-weight: 700; font-size: 1.2rem; }
+.landing-brand .wordmark .site { color: var(--text); }
+.landing-brand .wordmark .pulse { color: var(--signal); }
+.landing-nav { display: flex; gap: 30px; }
+.landing-nav-link {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  transition: color 0.15s ease;
+}
+.landing-nav-link:hover { color: var(--text); }
+.landing-actions { display: flex; align-items: center; gap: 18px; }
+.console-btn {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+@media (max-width: 760px) {
+  .landing-nav { display: none; }
+}
+
+/* --- Hero --- */
+.landing-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 18px 24px 40px;
+  max-width: 920px;
+  margin: 0 auto;
+  width: 100%;
+}
+.landing-hero .eyebrow {
+  margin-top: 26px;
+  color: var(--signal);
+}
+.hero-headline {
+  font-weight: 800;
+  font-size: clamp(2.6rem, 7vw, 5.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 14px 0 0;
+  color: var(--text);
+}
+.hero-headline .pulse {
+  color: var(--signal);
+  text-shadow: 0 0 32px var(--signal-glow);
+}
+.hero-sub {
+  margin: 22px auto 0;
+  max-width: 560px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  font-size: 1.02rem;
+}
+
+/* big live pulse in the center of the screen */
+.hero-bigpulse {
+  width: min(760px, 92vw);
+  margin: 26px auto 4px;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 16px var(--signal-glow));
+}
+
+/* URL input */
+.hero-input {
+  margin-top: 22px;
+  width: min(680px, 94vw);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(10, 17, 32, 0.72);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+.hero-input-ico { color: var(--text-dim); font-size: 1.05rem; }
+.hero-input-field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.95rem;
+}
+.hero-input-field::placeholder { color: var(--text-dim); }
+.hero-begin {
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.hero-foot { margin-top: 16px; }
+
+/* --- Footer strip --- */
+.landing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 34px;
+  border-top: 1px solid var(--border-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --motion: 0; --motion-play: paused; }
+  .pulseline .ekg-glow { animation: none; stroke-dashoffset: 523; }
+  .pulse-dot { animation: none; }
+}
+@media print {
+  :root { --motion: 0; --motion-play: paused; }
+  .pulseline .ekg-glow { animation: none; filter: none; }
+  .pulse-dot { animation: none; }
+}

@@ -29,6 +29,7 @@ Design notes
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from dataclasses import dataclass
@@ -81,12 +82,17 @@ def init_db(db_path: Path | str | None = None) -> None:
     """
     Create tables and indices if they don't already exist.
 
-    Idempotent — safe to call on every app start. We do exactly that
-    from app.py so the DB is always ready when needed.
+    Idempotent — safe to call on every app start. The API calls this on
+    startup (see api/main.py lifespan) so the DB is always ready.
     """
     sql = SCHEMA_PATH.read_text(encoding="utf-8")
     with _connect(db_path) as conn:
         conn.executescript(sql)
+        # Lightweight migration: older DBs created before the `details` column
+        # existed won't get it from CREATE TABLE IF NOT EXISTS. Add it if missing.
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(issues)")}
+        if "details" not in cols:
+            conn.execute("ALTER TABLE issues ADD COLUMN details TEXT")
     logger.info("Initialized database at %s", db_path or DEFAULT_DB_PATH)
 
 
@@ -154,8 +160,8 @@ def save_scan(scan: ScanResult, db_path: Path | str | None = None) -> int:
                 INSERT INTO issues (
                     scan_id, url, issue_type, severity, category,
                     description, recommendation,
-                    status_code, response_time
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status_code, response_time, details
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -168,6 +174,7 @@ def save_scan(scan: ScanResult, db_path: Path | str | None = None) -> int:
                         i.recommendation,
                         i.status_code,
                         i.response_time,
+                        json.dumps(i.details) if getattr(i, "details", None) else None,
                     )
                     for i in scan.issues
                 ],
@@ -312,6 +319,14 @@ def get_scan(scan_id: int, db_path: Path | str | None = None) -> Optional[ScanRe
         issues = []
         for ir in issue_rows:
             category = ir["category"] if ir["category"] in VALID_CATEGORIES else CATEGORY_SEO
+            # `details` is JSON (or NULL). Guard for legacy rows / bad JSON.
+            details = None
+            raw_details = ir["details"] if "details" in ir.keys() else None
+            if raw_details:
+                try:
+                    details = json.loads(raw_details)
+                except (ValueError, TypeError):
+                    details = None
             issues.append(Issue(
                 url=ir["url"],
                 issue_type=ir["issue_type"],
@@ -321,6 +336,7 @@ def get_scan(scan_id: int, db_path: Path | str | None = None) -> Optional[ScanRe
                 recommendation=ir["recommendation"],
                 status_code=ir["status_code"],
                 response_time=ir["response_time"],
+                details=details,
             ))
 
         # Per-category sub-scores (empty for scans saved before this existed).

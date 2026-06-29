@@ -234,8 +234,8 @@ def scan_to_pdf(scan: ScanResult) -> bytes:
     """
     Render the scan result as a PDF and return it as raw bytes.
 
-    Returning bytes (rather than writing to a file) means Streamlit can
-    serve the PDF via st.download_button without touching the filesystem.
+    Returning bytes (rather than writing to a file) means the API can stream
+    the PDF as a download without touching the filesystem.
     """
     styles = _styles()
     buf = io.BytesIO()

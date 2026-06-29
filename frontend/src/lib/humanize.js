@@ -23,6 +23,10 @@ const FRIENDLY = {
     plain: "This link leads to a missing page.",
     effort: "Easy",
   },
+  "Pages Returning 404": {
+    plain: "Some URLs returned 'page not found'. They may be genuinely missing, or the site may be blocking our scanner — worth checking each one in a browser.",
+    effort: "Easy",
+  },
   "Server Error": {
     plain: "The server returned an error while loading this page.",
     effort: "Medium",

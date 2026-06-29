@@ -11,6 +11,7 @@ import {
 import PageHeader from "../components/PageHeader.jsx";
 import { api } from "../api.js";
 import { categoryMeta, severityClass, scoreStatus } from "../lib/categoryMeta.js";
+import { CategoryIcon, SparkleIcon } from "../components/Icons.jsx";
 
 export default function History() {
   const [scans, setScans] = useState(null);
@@ -189,15 +190,18 @@ function CompareView({ fromId, toId }) {
           value={`${diff.fromScan.score} → ${diff.toScan.score}`}
           sub={`${delta >= 0 ? "+" : ""}${delta}`}
           color={delta >= 0 ? "var(--green)" : "var(--red)"} />
-        <Stat label="✅ Resolved" value={diff.fixedIssues.length} color="var(--green)" />
-        <Stat label="⚠️ New" value={diff.newIssues.length} color="var(--red)" />
-        <Stat label="➡️ Still open" value={diff.unchangedIssues.length} />
+        <Stat label="Resolved" value={diff.fixedIssues.length} color="var(--green)" />
+        <Stat label="New" value={diff.newIssues.length} color="var(--red)" />
+        <Stat label="Still open" value={diff.unchangedIssues.length} />
       </div>
 
       {/* AI root-cause */}
       <div className="card" style={{ background: "rgba(34,211,238,0.04)", marginBottom: 14 }}>
         <div className="flex items-center justify-between" style={{ flexWrap: "wrap", gap: 8 }}>
-          <div className="flex items-center gap-2" style={{ fontWeight: 700 }}>🧠 Root-Cause Analysis</div>
+          <div className="flex items-center gap-2" style={{ fontWeight: 700 }}>
+            <span style={{ color: "var(--cyan)", display: "inline-flex" }}><SparkleIcon size={16} /></span>
+            Root-Cause Analysis
+          </div>
           <button className="btn primary" onClick={getInsight} disabled={loadingInsight}>
             {loadingInsight ? "Analyzing…" : "Get AI Insights"}
           </button>
@@ -216,9 +220,9 @@ function CompareView({ fromId, toId }) {
         )}
       </div>
 
-      <IssueList title="⚠️ New issues" issues={diff.newIssues} empty="No new issues — nice." />
-      <IssueList title="✅ Resolved" issues={diff.fixedIssues} empty="Nothing was resolved between these scans." />
-      <IssueList title="➡️ Still open" issues={diff.unchangedIssues} empty="No issues carried over." />
+      <IssueList title="New issues" issues={diff.newIssues} empty="No new issues — nice." />
+      <IssueList title="Resolved" issues={diff.fixedIssues} empty="Nothing was resolved between these scans." />
+      <IssueList title="Still open" issues={diff.unchangedIssues} empty="No issues carried over." />
     </div>
   );
 }
@@ -236,7 +240,7 @@ function IssueList({ title, issues, empty }) {
             return (
               <div key={idx} className="flex items-center gap-2" style={{ fontSize: ".85rem", flexWrap: "wrap" }}>
                 <span className={"badge " + severityClass(i.severity)}>{i.severity}</span>
-                <span className="muted">{meta.icon} {i.issueType}</span>
+                <span className="muted flex items-center gap-2"><CategoryIcon name={i.category} size={13} /> {i.issueType}</span>
                 <span className="dim" style={{ wordBreak: "break-all" }}>{i.url}</span>
               </div>
             );

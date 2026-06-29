@@ -101,6 +101,66 @@ def build_user_prompt(
     )
 
 
+# --- Grouped 404 note: analyze a LIST of not-found URLs -------------------
+
+# The standard single-issue prompt assumes one URL and one fix. The grouped
+# "Pages Returning 404" note is different: it's a LIST of URLs, and the most
+# useful thing the AI can do is spot a PATTERN across them (e.g. external links
+# that are missing their "https://" prefix, so they resolve against the user's
+# own domain and 404). So it gets its own prompt that receives the real URLs.
+
+PAGES_404_USER_PROMPT_TEMPLATE = """\
+A web crawler found that the following URLs on the user's site "{root_url}"
+returned HTTP 404 (page not found):
+
+{url_list}
+
+IMPORTANT context about why this might happen:
+- The page may be genuinely missing or deleted.
+- OR a link may be MALFORMED — for example an external link written as
+  "https://{root_host}/tiktok.com/@name" instead of "https://tiktok.com/@name".
+  When the "https://" prefix is missing, the browser treats the address as a
+  page inside the user's OWN site, which then 404s. This is a very common cause.
+- OR the site may be blocking automated scanners (Shopify, Cloudflare, etc.),
+  in which case the pages actually work fine in a real browser.
+
+Look carefully at the actual URLs above and figure out which explanation best
+fits. If several URLs share a pattern (e.g. they all contain another domain
+like "tiktok.com" or "instagram.com" embedded in the path), point that out
+specifically and explain how to fix that pattern.
+
+Respond with a single JSON object that exactly matches this schema:
+
+{schema}
+
+Important:
+- Return ONLY the JSON object. No markdown, no code fences, no commentary.
+- In "suggested_fix", be specific to the URLs above — name the actual pattern
+  you see, don't give generic "check your links" advice.
+- In "code_snippet", if the problem is a malformed link, show a BEFORE/AFTER
+  example using one of the real URLs above (e.g. the wrong <a href> and the
+  corrected one). If there's no single code fix, use an empty string.
+"""
+
+
+def build_pages_404_prompt(*, root_url: str, urls: list[str]) -> str:
+    """Prompt for the grouped 404 note — passes the real list of 404 URLs."""
+    from urllib.parse import urlparse
+
+    root_host = urlparse(root_url).hostname or root_url
+    # Cap the list we send so a huge site doesn't blow the prompt budget.
+    shown = urls[:40]
+    url_list = "\n".join(f"- {u}" for u in shown)
+    if len(urls) > len(shown):
+        url_list += f"\n- ...and {len(urls) - len(shown)} more"
+    return PAGES_404_USER_PROMPT_TEMPLATE.format(
+        root_url=root_url,
+        root_host=root_host,
+        url_list=url_list,
+        schema=RESPONSE_SCHEMA,
+    )
+
+
 # --- Root-Cause Analysis (Stage 14): explain a diff between two scans -----
 
 ROOT_CAUSE_SYSTEM_INSTRUCTION = """\

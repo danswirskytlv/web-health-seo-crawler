@@ -11,8 +11,8 @@ We provide two flavors so the user can pick what they actually need:
 - `pages_to_csv(scan_result)` — one row per crawled page (URL, status code,
   response time). Useful for "did the crawl reach everything?" checks.
 
-Both return strings, not files, so the same function can be used inside
-Streamlit's st.download_button (in-memory) or written to disk by a CLI.
+Both return strings, not files, so the API can stream them as a download
+(in-memory) without touching the filesystem.
 """
 
 from __future__ import annotations

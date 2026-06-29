@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader.jsx";
 import { useScan } from "../state/ScanContext.jsx";
+import { RadarIcon } from "../components/Icons.jsx";
 
 export default function Scan() {
   const { runScan, status } = useScan();
@@ -21,7 +22,7 @@ export default function Scan() {
     if (!opts.url.trim()) return;
     try {
       await runScan({ ...opts, save: true });
-      navigate("/"); // jump to the Overview to see results
+      navigate("/app"); // jump to the Overview to see results
     } catch {
       /* error shown on Overview */
     }
@@ -61,7 +62,7 @@ export default function Scan() {
         </div>
 
         <button className="btn primary mt-3" style={{ marginTop: 18 }} onClick={start} disabled={status === "running"}>
-          {status === "running" ? "Scanning…" : "📡 Run Health Scan"}
+          {status === "running" ? "Scanning…" : <><RadarIcon size={15} /> Run Health Scan</>}
         </button>
         <div className="dim mt-2" style={{ fontSize: ".8rem" }}>
           Polite crawling enabled — SitePulse scans responsibly.

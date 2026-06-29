@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PageHeader from "../components/PageHeader.jsx";
 import ScoreGauge from "../components/ScoreGauge.jsx";
+import PulseLine from "../components/PulseLine.jsx";
+import HeroLockup from "../components/HeroLockup.jsx";
+import {
+  CategoryIcon,
+  DocIcon,
+  WarningIcon,
+  LinkIcon,
+  ClockIcon,
+  DotAlertIcon,
+  SparkleIcon,
+  RadarIcon,
+  BulbIcon,
+  RobotIcon,
+  ArrowRightIcon,
+  CelebrateIcon,
+} from "../components/Icons.jsx";
 import { useScan } from "../state/ScanContext.jsx";
 import { api } from "../api.js";
 import { categoryMeta, scoreStatus } from "../lib/categoryMeta.js";
@@ -59,7 +75,7 @@ export default function Overview() {
             onKeyDown={(e) => e.key === "Enter" && onScan()}
           />
           <button className="btn primary" onClick={onScan} disabled={status === "running"}>
-            {status === "running" ? "Scanning…" : "📡 Run Health Scan"}
+            {status === "running" ? "Scanning…" : <><RadarIcon size={15} /> Run Health Scan</>}
           </button>
           <Link className="btn" to="/history">Compare with Previous Scan</Link>
         </div>
@@ -106,7 +122,8 @@ function Results({ scan, prev }) {
 
         <div className="card">
           <div className="flex items-center gap-2" style={{ fontWeight: 700 }}>
-            <span>🧠 Summary</span>
+            <span style={{ color: "var(--cyan)", display: "inline-flex" }}><SparkleIcon size={16} /></span>
+            Summary
           </div>
           <p className="muted" style={{ lineHeight: 1.6, marginTop: 8 }}>
             SitePulse scanned <b style={{ color: "var(--text)" }}>{scan.rootUrl}</b> and
@@ -128,12 +145,12 @@ function Results({ scan, prev }) {
 
       {/* Metric cards (with trend vs previous scan) */}
       <div className="grid cols-5" style={{ marginBottom: 8 }}>
-        <Metric label="Pages scanned" value={m.pagesScanned} icon="📄" />
-        <Metric label="Issues found" value={m.issuesFound} icon="⚠️"
+        <Metric label="Pages scanned" value={m.pagesScanned} icon={<DocIcon size={16} />} />
+        <Metric label="Issues found" value={m.issuesFound} icon={<WarningIcon size={16} />}
           delta={trend(m.issuesFound, prev?.issuesCount)} lowerIsBetter />
-        <Metric label="Broken links" value={m.brokenLinks} icon="🔗" />
-        <Metric label="Avg response" value={fmtTime(m.averageResponseTime)} icon="⏱️" />
-        <Metric label="Critical issues" value={m.highCount} icon="🔴" accent="var(--red)"
+        <Metric label="Broken links" value={m.brokenLinks} icon={<LinkIcon size={16} />} />
+        <Metric label="Avg response" value={fmtTime(m.averageResponseTime)} icon={<ClockIcon size={16} />} />
+        <Metric label="Critical issues" value={m.highCount} icon={<DotAlertIcon size={16} />} accent="var(--red)"
           delta={trend(m.highCount, prev?.highCount)} lowerIsBetter />
       </div>
 
@@ -167,7 +184,7 @@ function Metric({ label, value, icon, accent, delta, lowerIsBetter }) {
   }
   return (
     <div className="card hover" style={{ padding: "16px 18px" }}>
-      <div className="dim" style={{ fontSize: ".78rem" }}>{icon} {label}</div>
+      <div className="dim flex items-center gap-2" style={{ fontSize: ".78rem" }}>{icon} {label}</div>
       <div style={{ fontSize: "1.7rem", fontWeight: 800, marginTop: 6, color: accent || "var(--text)" }}>
         {value ?? "—"}
       </div>
@@ -183,7 +200,9 @@ function CategoryCard({ category, score, issues }) {
   return (
     <div className="card hover">
       <div className="flex items-center gap-2" style={{ fontWeight: 700 }}>
-        <span>{meta.icon}</span>
+        <span style={{ color: "var(--cyan)", display: "inline-flex" }}>
+          <CategoryIcon name={category} size={18} />
+        </span>
         <span>{meta.label}</span>
       </div>
       <div style={{ fontSize: "1.5rem", fontWeight: 800, marginTop: 8 }}>
@@ -202,7 +221,7 @@ function CategoryCard({ category, score, issues }) {
           to={`/issues?category=${encodeURIComponent(category)}`}
           style={{ color: "var(--cyan)", fontSize: ".8rem", fontWeight: 600, display: "inline-block", marginTop: 8 }}
         >
-          View issues →
+          <span className="flex items-center gap-2">View issues <ArrowRightIcon size={13} /></span>
         </Link>
       )}
     </div>
@@ -220,16 +239,17 @@ function ActionPlan({ scan }) {
     return (
       <>
         <div className="section-title">Recommended Action Plan</div>
-        <div className="card muted">No issues found — nothing to fix. 🎉</div>
+        <div className="card muted flex items-center gap-2"><span style={{ color: "var(--cyan)", display: "inline-flex" }}><CelebrateIcon size={16} /></span> No issues found — nothing to fix.</div>
       </>
     );
   }
 
-  // Group by issue type, keep the worst severity + count, order by severity.
+  // Group by issue type, keep the worst severity + page count, order by severity.
+  // issues are deduped rows; affectedPages tells us how many pages each covers.
   const groups = {};
   for (const i of issues) {
     const g = (groups[i.issueType] ??= { type: i.issueType, severity: i.severity, count: 0, sample: i });
-    g.count += 1;
+    g.count += i.affectedPages || 1;
     if (SEV_RANK[i.severity] < SEV_RANK[g.severity]) { g.severity = i.severity; g.sample = i; }
   }
   const plan = Object.values(groups)
@@ -257,7 +277,7 @@ function ActionPlan({ scan }) {
                   </div>
                 </div>
                 <Link className="btn" to={`/issues?category=${encodeURIComponent(g.sample.category)}`}>
-                  Start Fix →
+                  Start Fix <ArrowRightIcon size={13} />
                 </Link>
               </div>
             );
@@ -294,6 +314,9 @@ function ScanProgress() {
       <div className="flex items-center gap-2" style={{ fontWeight: 700 }}>
         <span className="pulse-dot" /> Scanning…
       </div>
+      <div style={{ margin: "14px 0 2px" }}>
+        <PulseLine height={48} beats={5} />
+      </div>
       <div className="mt-3" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {SCAN_STEPS.map((s, i) => (
           <div key={i} className="muted flex items-center gap-2" style={{ fontSize: ".9rem" }}>
@@ -314,9 +337,9 @@ function ScanProgress() {
 function EmptyState() {
   return (
     <>
-      <div className="card" style={{ textAlign: "center", padding: "36px 28px" }}>
-        <div className="pulse-dot" style={{ margin: "0 auto 14px" }} />
-        <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>
+      <div className="card" style={{ textAlign: "center", padding: "44px 28px" }}>
+        <HeroLockup />
+        <div style={{ fontSize: "1.3rem", fontWeight: 700, marginTop: 28 }}>
           Start your first website health scan
         </div>
         <div className="muted" style={{ maxWidth: 600, margin: "8px auto 0", lineHeight: 1.6 }}>
@@ -325,11 +348,11 @@ function EmptyState() {
         </div>
       </div>
       <div className="grid cols-3" style={{ marginTop: 18 }}>
-        <Feature icon="🔍" title="Detect hidden issues"
+        <Feature icon={<RadarIcon size={18} />} title="Detect hidden issues"
           text="Crawls your pages and runs deterministic health, SEO, security and accessibility checks." />
-        <Feature icon="💡" title="Understand what matters"
+        <Feature icon={<BulbIcon size={18} />} title="Understand what matters"
           text="Every issue is scored by severity and explained in simple, non-technical language." />
-        <Feature icon="🤖" title="Fix with AI guidance"
+        <Feature icon={<RobotIcon size={18} />} title="Fix with AI guidance"
           text="Get ready-to-paste fixes and track your site's health over time." />
       </div>
     </>
@@ -339,7 +362,9 @@ function EmptyState() {
 function Feature({ icon, title, text }) {
   return (
     <div className="card hover">
-      <div style={{ fontWeight: 700 }}>{icon} {title}</div>
+      <div className="flex items-center gap-2" style={{ fontWeight: 700 }}>
+        <span style={{ color: "var(--cyan)", display: "inline-flex" }}>{icon}</span> {title}
+      </div>
       <div className="muted mt-2" style={{ lineHeight: 1.55 }}>{text}</div>
     </div>
   );

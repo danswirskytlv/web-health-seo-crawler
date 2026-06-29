@@ -32,11 +32,11 @@ from analyzer.security import (
     SEC_NO_HTTPS,
 )
 from analyzer.seo_analyzer import (
-    ISSUE_BROKEN_LINK,
     ISSUE_MISSING_ALT,
     ISSUE_MISSING_H1,
     ISSUE_MISSING_META_DESC,
     ISSUE_MISSING_TITLE,
+    ISSUE_PAGES_404,
     analyze_pages,
 )
 from crawler.crawler import crawl_site
@@ -50,10 +50,10 @@ EXPECTED_COUNTS = {
     ISSUE_MISSING_META_DESC: 1,    # services.html
     ISSUE_MISSING_ALT: 3,          # gallery.html × 3
     PERF_SLOW_RESPONSE: 1,         # faq.html
-    # Broken Link is split across two checks:
-    # - 1 on /portfolio.html itself (the 4xx page)
-    # - 1 on /pricing.html (the page that links to /portfolio.html)
-    ISSUE_BROKEN_LINK: 2,
+    # All 404s (here just /portfolio.html) collapse into ONE informational
+    # "Pages Returning 404" note — we no longer emit per-link Broken Link
+    # errors, because a scanner can't tell a real 404 from an anti-bot block.
+    ISSUE_PAGES_404: 1,
 }
 
 

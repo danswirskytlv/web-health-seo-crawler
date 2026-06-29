@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader.jsx";
 import { useScan } from "../state/ScanContext.jsx";
 import { api } from "../api.js";
@@ -12,14 +13,30 @@ const SUGGESTIONS = [
 
 export default function Chat() {
   const { scan } = useScan();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]); // {role, content}
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
+  const seededRef = useRef(false);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy]);
+
+  // If we arrived here from the "Continue in chat" button, auto-send the
+  // pre-built question once. We then clear the router state so a refresh or
+  // re-render doesn't fire it again.
+  useEffect(() => {
+    const seed = location.state?.seed;
+    if (seed && !seededRef.current) {
+      seededRef.current = true;
+      navigate(location.pathname, { replace: true, state: {} });
+      send(seed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   const send = async (text) => {
     const msg = (text ?? input).trim();
