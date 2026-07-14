@@ -24,7 +24,7 @@ const NAV = [
 export default function Sidebar() {
   return (
     <aside className="rail">
-      <Link to="/app" className="brand" aria-label="SitePulse home">
+      <Link to="/" className="brand" aria-label="SitePulse home">
         <Logo size={26} />
         <Wordmark />
       </Link>

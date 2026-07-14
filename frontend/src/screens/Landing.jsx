@@ -53,24 +53,6 @@ export default function Landing() {
 
       {/* Hero */}
       <main className="landing-hero">
-        {/* Brand lockup */}
-        <div className="hero-lockup">
-          <div className="mark-row">
-            <Logo size={46} />
-            <span className="wordmark-xl">
-              <span className="site">Site</span>
-              <span className="pulse">Pulse</span>
-            </span>
-          </div>
-          <div className="signal-rail">
-            <span className="cap">BPM · <b>72</b></span>
-            <PulseLine height={44} beats={5} />
-            <span className="cap" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              SIGNAL · <b>LIVE</b> <span className="live-dot" />
-            </span>
-          </div>
-        </div>
-
         <div className="eyebrow label-mono">● Website Health Intelligence</div>
 
         <h1 className="hero-headline">
